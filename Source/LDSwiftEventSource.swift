@@ -160,6 +160,7 @@ class EventSourceDelegate: NSObject, URLSessionDataDelegate {
             config.handler.onClosed()
         }
         urlSession?.invalidateAndCancel()
+        urlSession = nil
     }
 
     func getLastEventId() -> String? { lastEventId }
@@ -183,13 +184,20 @@ class EventSourceDelegate: NSObject, URLSessionDataDelegate {
 
     private func connect() {
         logger.log(.info, "Starting EventSource client")
+
+        self.urlSession = self.urlSession ?? self.createSession()
+        guard let urlSession = urlSession else {
+            logger.log(.info, "Error starting EventSource client: no session")
+            return
+        }
+
         let connectionHandler: ConnectionHandler = (
             setReconnectionTime: { [weak self] reconnectionTime in self?.reconnectTime = reconnectionTime },
             setLastEventId: { [weak self] eventId in self?.lastEventId = eventId }
         )
         self.eventParser = EventParser(handler: self.config.handler, connectionHandler: connectionHandler)
-        let task = urlSession?.dataTask(with: createRequest())
-        task?.resume()
+        let task = urlSession.dataTask(with: createRequest())
+        task.resume()
         sessionTask = task
     }
 
